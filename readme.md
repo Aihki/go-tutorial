@@ -13,3 +13,4 @@ Filteringiä käytin Speciessä jossa voi hakeä tiettyä lajia.
 dokumentoinissa käytin swaggeria.
 
 ## Deployment# go-tutorial
+laitoin tämän toimiman azuressa docker konttinta
