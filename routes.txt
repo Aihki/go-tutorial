@@ -1,0 +1,33 @@
+package main
+
+import (
+	swagger "github.com/arsmn/fiber-swagger/v2"
+	"github.com/gofiber/fiber/v2"
+)
+
+func setupRoutes(app *fiber.App) {
+	// Swagger setup
+	app.Get("/swagger/*", swagger.HandlerDefault)
+
+	// Species routes
+	app.Get("/api/species", getSpecies)
+	app.Get("/api/species/:id", getSpecie)
+	app.Get("/api/species/name/:species_name", getSpecieByName)
+	app.Post("/api/species", createSpecies)
+	app.Put("/api/species/:id", updateSpecie)
+	app.Delete("/api/species/:id", deleteSpecie)
+
+	// Categories routes
+	app.Get("/api/categories", getCategories)
+	app.Get("/api/categories/:id", getCategory)
+	app.Post("/api/categories", createCategory)
+	app.Put("/api/categories/:id", updateCategory)
+	app.Delete("/api/categories/:id", deleteCategory)
+
+	// Animals routes
+	app.Get("/api/animals", getAnimals)
+	app.Get("/api/animals/:id", getAnimal)
+	app.Post("/api/animals", createAnimal)
+	app.Put("/api/animals/:id", updateAnimal)
+	app.Delete("/api/animals/:id", deleteAnimal)
+}

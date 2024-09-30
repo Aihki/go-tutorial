@@ -1,0 +1,6 @@
+.env
+air.toml
+go.mod
+go.sum
+dist
+.DS_Store

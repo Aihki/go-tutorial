@@ -1,0 +1,36 @@
+package main
+
+import (
+	"time"
+
+	"go.mongodb.org/mongo-driver/bson/primitive"
+)
+
+type Location struct {
+	Type        string     `json:"type" bson:"type"`
+	Latitude    float64    `json:"latitude" bson:"latitude"`
+	Longitude   float64    `json:"longitude" bson:"longitude"`
+	Coordinates [2]float64 `json:"coordinates" bson:"coordinates"`
+}
+
+type Species struct {
+	ID          primitive.ObjectID `json:"_id,omitempty" bson:"_id,omitempty"`
+	SpeciesName string             `json:"species_name" bson:"species_name"`
+	CategoryID  primitive.ObjectID `json:"category_id" bson:"category"`
+	Image       string             `json:"image" bson:"image"`
+	Location    Location           `json:"location" bson:"location"`
+}
+
+type Category struct {
+	ID           primitive.ObjectID `json:"_id" bson:"_id"`
+	CategoryName string             `json:"category_name" bson:"category_name"`
+}
+
+type Animal struct {
+	ID         primitive.ObjectID `json:"_id" bson:"_id"`
+	AnimalName string             `json:"animal_name" bson:"animal_name"`
+	SpeciesID  primitive.ObjectID `json:"species_id" bson:"species"`
+	Birthdate  time.Time          `json:"birthdate" bson:"birthdate"`
+	Image      string             `json:"image" bson:"image"`
+	Location   Location           `json:"location" bson:"location"`
+}

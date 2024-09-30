@@ -1,0 +1,562 @@
+package main
+
+import (
+	"context"
+	"fmt"
+
+	"github.com/gofiber/fiber/v2"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
+)
+
+
+// @Summary Get all species
+// @Description Get a list of all species
+// @Tags species
+// @Produce json
+// @Success 200 {array} Species
+// @Router /species [get]
+func getSpecies(c *fiber.Ctx) error {
+	var species []Species
+	ctx := context.Background()
+
+	// Sorting
+	sort := bson.D{}
+	sortBy := c.Query("sort_by")
+	order := -1
+	if sortBy != "" {
+		if c.Query("order") == "asc" {
+			order = 1
+		}
+		sort = append(sort, bson.E{Key: sortBy, Value: order})
+	}
+
+	// Pagination
+	page := c.QueryInt("page")
+	limit := c.QueryInt("limit")
+	skip := 0
+	if page > 0 && limit > 0 {
+		skip = (page - 1) * limit
+	}
+
+	findOptions := options.Find()
+	if sortBy != "" {
+		findOptions.SetSort(sort)
+	}
+	if page > 0 && limit > 0 {
+		findOptions.SetSkip(int64(skip))
+		findOptions.SetLimit(int64(limit))
+	}
+
+	cursor, err := speciesCollection.Find(ctx, bson.M{}, findOptions)
+	if err != nil {
+		fmt.Printf("Error fetching species: %v\n", err)
+		return c.Status(500).JSON(fiber.Map{"error": "Failed to fetch species"})
+	}
+	defer cursor.Close(ctx)
+
+	for cursor.Next(ctx) {
+		var specie Species
+		if err := cursor.Decode(&specie); err != nil {
+			fmt.Printf("Error decoding species: %v\n", err)
+			return c.Status(500).JSON(fiber.Map{"error": "Failed to decode species"})
+		}
+
+		species = append(species, specie)
+	}
+
+	if err := cursor.Err(); err != nil {
+		fmt.Printf("Cursor error: %v\n", err)
+		return c.Status(500).JSON(fiber.Map{"error": "Cursor error"})
+	}
+
+	return c.JSON(species)
+}
+
+// @Summary Create a new species
+// @Description Create a new species
+// @Tags species
+// @Accept json
+// @Produce json
+// @Param species body Species true "Species to create"
+// @Success 201 {object} Species
+// @Router /species [post]
+func createSpecies(c *fiber.Ctx) error {
+	species := new(Species)
+
+	if err := c.BodyParser(species); err != nil {
+		return err
+	}
+	if species.SpeciesName == "" {
+		return c.Status(400).JSON(fiber.Map{"error": "Species name is required"})
+	}
+	if species.CategoryID.IsZero() {
+		return c.Status(400).JSON(fiber.Map{"error": "Category ID is required"})
+	}
+
+	species.ID = primitive.NewObjectID()
+
+	_, err := speciesCollection.InsertOne(context.Background(), species)
+	if err != nil {
+		return err
+	}
+	return c.Status(201).JSON(species)
+}
+
+// @Summary Update a species
+// @Description Update a species by its ID
+// @Tags species
+// @Accept json
+// @Produce json
+// @Param id path string true "Species ID"
+// @Param species body Species true "Species to update"
+// @Success 200 {object} Species
+// @Router /species/{id} [put]
+func updateSpecie(c *fiber.Ctx) error {
+	id := c.Params("id")
+	objID, err := primitive.ObjectIDFromHex(id)
+	if err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "Invalid ID"})
+	}
+
+	var updateData map[string]interface{}
+	if err := c.BodyParser(&updateData); err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "Invalid request body"})
+	}
+	update := bson.M{
+		"$set": updateData,
+	}
+
+	filter := bson.M{"_id": objID}
+	ctx := context.Background()
+
+	result, err := speciesCollection.UpdateOne(ctx, filter, update)
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "Failed to update species"})
+	}
+
+	return c.JSON(result)
+}
+
+// @Summary Get a species by ID
+// @Description Get a species by its ID
+// @Tags species
+// @Produce json
+// @Param id path string true "Species ID"
+// @Success 200 {object} Species
+// @Router /species/{id} [get]
+func getSpecie(c *fiber.Ctx) error {
+	id := c.Params("id")
+	objID, err := primitive.ObjectIDFromHex(id)
+	if err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "Invalid ID"})
+	}
+
+	var specie Species
+	ctx := context.Background()
+
+	err = speciesCollection.FindOne(ctx, bson.M{"_id": objID}).Decode(&specie)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return c.Status(404).JSON(fiber.Map{"error": "Species not found"})
+		}
+		return c.Status(500).JSON(fiber.Map{"error": "Failed to retrieve species"})
+	}
+
+	return c.JSON(specie)
+}
+
+// @Summary Get a species by name
+// @Description Get a species by its name
+// @Tags species
+// @Produce json
+// @Param species_name path string true "Species Name"
+// @Success 200 {object} Species
+// @Router /species/name/{species_name} [get]
+func getSpecieByName(c *fiber.Ctx) error {
+	var specie Species
+	ctx := context.Background()
+
+	speciesName := c.Params("species_name")
+
+	filter := bson.M{"species_name": speciesName}
+	err := speciesCollection.FindOne(ctx, filter).Decode(&specie)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return c.Status(404).JSON(fiber.Map{"error": "Species not found"})
+		}
+		fmt.Printf("Error fetching species: %v\n", err)
+		return c.Status(500).JSON(fiber.Map{"error": "Failed to fetch species"})
+	}
+
+	return c.JSON(specie)
+}
+
+// @Summary Delete a species
+// @Description Delete a species by its ID
+// @Tags species
+// @Param id path string true "Species ID"
+// @Success 204
+// @Router /species/{id} [delete]
+func deleteSpecie(c *fiber.Ctx) error {
+	id := c.Params("id")
+	objID, err := primitive.ObjectIDFromHex(id)
+	if err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "Invalid ID"})
+	}
+
+	filter := bson.M{"_id": objID}
+	ctx := context.Background()
+
+	_, err = speciesCollection.DeleteOne(ctx, filter)
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "Failed to delete species"})
+	}
+	return c.Status(200).JSON(fiber.Map{"success": true})
+}
+
+// @Summary Get a category by ID
+// @Description Get a category by its ID
+// @Tags categories
+// @Produce json
+// @Param id path string true "Category ID"
+// @Success 200 {object} Category
+// @Router /categories/{id} [get]
+func getCategory(c *fiber.Ctx) error {
+	id := c.Params("id")
+	objID, err := primitive.ObjectIDFromHex(id)
+	if err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "Invalid ID"})
+	}
+
+	var category Category
+	ctx := context.Background()
+
+	err = categoriesCollection.FindOne(ctx, bson.M{"_id": objID}).Decode(&category)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return c.Status(404).JSON(fiber.Map{"error": "Category not found"})
+		}
+		return c.Status(500).JSON(fiber.Map{"error": "Failed to retrieve category"})
+	}
+
+	return c.JSON(category)
+}
+
+// Categories routes
+// @Summary Get all categories
+// @Description Get a list of all categories
+// @Tags categories
+// @Produce json
+// @Success 200 {array} Category
+// @Router /categories [get]
+func getCategories(c *fiber.Ctx) error {
+	var categories []Category
+	ctx := context.Background()
+
+	// Sorting
+	sort := bson.D{}
+	sortBy := c.Query("sort_by")
+	order := -1
+	if sortBy != "" {
+		if c.Query("order") == "asc" {
+			order = 1
+		}
+		sort = append(sort, bson.E{Key: sortBy, Value: order})
+	}
+
+	// Pagination
+	page := c.QueryInt("page")
+	limit := c.QueryInt("limit")
+	skip := 0
+	if page > 0 && limit > 0 {
+		skip = (page - 1) * limit
+	}
+
+	findOptions := options.Find()
+	if sortBy != "" {
+		findOptions.SetSort(sort)
+	}
+	if page > 0 && limit > 0 {
+		findOptions.SetSkip(int64(skip))
+		findOptions.SetLimit(int64(limit))
+	}
+
+	cursor, err := categoriesCollection.Find(ctx, bson.M{}, findOptions)
+	if err != nil {
+		fmt.Printf("Error fetching categories: %v\n", err) // Debugging statement
+		return c.Status(500).JSON(fiber.Map{"error": "Failed to fetch categories"})
+	}
+	defer cursor.Close(ctx)
+
+	for cursor.Next(ctx) {
+		var category Category
+		if err := cursor.Decode(&category); err != nil {
+			fmt.Printf("Error decoding category: %v\n", err) // Debugging statement
+			return c.Status(500).JSON(fiber.Map{"error": "Failed to decode category"})
+		}
+		categories = append(categories, category)
+	}
+
+	if err := cursor.Err(); err != nil {
+		fmt.Printf("Cursor error: %v\n", err) // Debugging statement
+		return c.Status(500).JSON(fiber.Map{"error": "Cursor error"})
+	}
+
+	return c.JSON(categories)
+}
+
+// @Summary Create a new category
+// @Description Create a new category
+// @Tags categories
+// @Accept json
+// @Produce json
+// @Param category body Category true "Category to create"
+// @Success 201 {object} Category
+// @Router /categories [post]
+func createCategory(c *fiber.Ctx) error {
+	category := new(Category)
+
+	if err := c.BodyParser(category); err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "Invalid request body"})
+	}
+	if category.CategoryName == "" {
+		return c.Status(400).JSON(fiber.Map{"error": "Category name is required"})
+	}
+
+	category.ID = primitive.NewObjectID()
+
+	_, err := categoriesCollection.InsertOne(context.Background(), category)
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "Failed to create category"})
+	}
+	return c.Status(201).JSON(category)
+}
+
+// @Summary Update a category
+// @Description Update a category by its ID
+// @Tags categories
+// @Accept json
+// @Produce json
+// @Param id path string true "Category ID"
+// @Param category body Category true "Category to update"
+// @Success 200 {object} Category
+// @Router /categories/{id} [put]
+func updateCategory(c *fiber.Ctx) error {
+	id := c.Params("id")
+	objID, err := primitive.ObjectIDFromHex(id)
+	if err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "Invalid ID"})
+	}
+
+	var updateData map[string]interface{}
+	if err := c.BodyParser(&updateData); err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "Invalid request body"})
+	}
+	update := bson.M{
+		"$set": updateData,
+	}
+
+	filter := bson.M{"_id": objID}
+
+	result, err := categoriesCollection.UpdateOne(context.Background(), filter, update)
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "Failed to update document"})
+	}
+
+	return c.JSON(result)
+}
+
+// @Summary Delete a category
+// @Description Delete a category by its ID
+// @Tags categories
+// @Param id path string true "Category ID"
+// @Success 204
+// @Router /categories/{id} [delete]
+func deleteCategory(c *fiber.Ctx) error {
+	id := c.Params("id")
+	objID, err := primitive.ObjectIDFromHex(id)
+	if err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "Invalid ID"})
+	}
+
+	filter := bson.M{"_id": objID}
+	_, err = categoriesCollection.DeleteOne(context.Background(), filter)
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "Failed to delete category"})
+	}
+	return c.Status(200).JSON(fiber.Map{"success": true})
+}
+
+// Animals routes
+// @Summary Get all animals
+// @Description Get a list of all animals
+// @Tags animals
+// @Produce json
+// @Success 200 {array} Animal
+// @Router /animals [get]
+func getAnimals(c *fiber.Ctx) error {
+	var animals []Animal
+	ctx := context.Background()
+
+	// Sorting
+	sort := bson.D{}
+	sortBy := c.Query("sort_by")
+	order := 1
+	if sortBy != "" {
+		if c.Query("order") == "desc" {
+			order = -1
+		}
+		sort = append(sort, bson.E{Key: sortBy, Value: order})
+	}
+
+	// Pagination
+	page := c.QueryInt("page")
+	limit := c.QueryInt("limit")
+	skip := 0
+	if page > 0 && limit > 0 {
+		skip = (page - 1) * limit
+	}
+
+	findOptions := options.Find()
+	if sortBy != "" {
+		findOptions.SetSort(sort)
+	}
+	if page > 0 && limit > 0 {
+		findOptions.SetSkip(int64(skip))
+		findOptions.SetLimit(int64(limit))
+	}
+
+	cursor, err := animalsCollection.Find(ctx, bson.M{}, findOptions)
+	if err != nil {
+		fmt.Printf("Error fetching animals: %v\n", err)
+		return c.Status(500).JSON(fiber.Map{"error": "Failed to fetch animals"})
+	}
+	defer cursor.Close(ctx)
+
+	for cursor.Next(ctx) {
+		var animal Animal
+		if err := cursor.Decode(&animal); err != nil {
+			fmt.Printf("Error decoding animal: %v\n", err)
+			return c.Status(500).JSON(fiber.Map{"error": "Failed to decode animal"})
+		}
+		animals = append(animals, animal)
+	}
+
+	if err := cursor.Err(); err != nil {
+		fmt.Printf("Cursor error: %v\n", err)
+		return c.Status(500).JSON(fiber.Map{"error": "Cursor error"})
+	}
+
+	return c.JSON(animals)
+}
+
+// @Summary Get an animal by ID
+// @Description Get an animal by its ID
+// @Tags animals
+// @Produce json
+// @Param id path string true "Animal ID"
+// @Success 200 {object} Animal
+// @Router /animals/{id} [get]
+func getAnimal(c *fiber.Ctx) error {
+	id := c.Params("id")
+	objID, err := primitive.ObjectIDFromHex(id)
+	if err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "Invalid ID"})
+	}
+
+	var animal Animal
+	err = animalsCollection.FindOne(context.Background(), bson.M{"_id": objID}).Decode(&animal)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return c.Status(404).JSON(fiber.Map{"error": "Animal not found"})
+		}
+		return c.Status(500).JSON(fiber.Map{"error": "Failed to retrieve animal"})
+	}
+
+	return c.JSON(animal)
+}
+
+// @Summary Create a new animal
+// @Description Create a new animal
+// @Tags animals
+// @Accept json
+// @Produce json
+// @Param animal body Animal true "Animal to create"
+// @Success 201 {object} Animal
+// @Router /animals [post]
+func createAnimal(c *fiber.Ctx) error {
+	animal := new(Animal)
+
+	if err := c.BodyParser(animal); err != nil {
+		return err
+	}
+	if animal.AnimalName == "" {
+		return c.Status(400).JSON(fiber.Map{"error": "Animal name is required"})
+	}
+
+	animal.ID = primitive.NewObjectID()
+
+	_, err := animalsCollection.InsertOne(context.Background(), animal)
+	if err != nil {
+		return err
+	}
+	return c.Status(201).JSON(animal)
+}
+
+// @Summary Update an animal
+// @Description Update an animal by its ID
+// @Tags animals
+// @Accept json
+// @Produce json
+// @Param id path string true "Animal ID"
+// @Param animal body Animal true "Animal to update"
+// @Success 200 {object} Animal
+// @Router /animals/{id} [put]
+func updateAnimal(c *fiber.Ctx) error {
+	id := c.Params("id")
+	objID, err := primitive.ObjectIDFromHex(id)
+	if err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "Invalid ID"})
+	}
+
+	var updateData map[string]interface{}
+	if err := c.BodyParser(&updateData); err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "Invalid request body"})
+	}
+	update := bson.M{
+		"$set": updateData,
+	}
+
+	filter := bson.M{"_id": objID}
+
+	result, err := animalsCollection.UpdateOne(context.Background(), filter, update)
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "Failed to update document"})
+	}
+
+	return c.JSON(result)
+}
+
+// @Summary Delete an animal
+// @Description Delete an animal by its ID
+// @Tags animals
+// @Param id path string true "Animal ID"
+// @Success 204
+// @Router /animals/{id} [delete]
+func deleteAnimal(c *fiber.Ctx) error {
+	id := c.Params("id")
+	objID, err := primitive.ObjectIDFromHex(id)
+	if err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "Invalid ID"})
+	}
+
+	filter := bson.M{"_id": objID}
+	_, err = animalsCollection.DeleteOne(context.Background(), filter)
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "Failed to delete animal"})
+	}
+	return c.Status(200).JSON(fiber.Map{"success": true})
+}
