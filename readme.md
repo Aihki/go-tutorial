@@ -3,14 +3,16 @@ Tein Go tutoriaaleista ensiksi kaksi ekaa ilman että aloin mietiä Setp 2. Kolm
 
 ## Implement the API
 Apistäni löytyy GET; POST, PUT ja DELETE näille Category, Animals ja Species.
+Get animals on käytetty populatea että saadaan category ja species tiedot.
 
 ## More advanced features
 Käytin Paginationia kaikissa missä haetaan kaikki(Category, Animals ja Species)
 Sitten laitoin samamoihin kohtiin sortingin.
 Filteringiä käytin Speciessä jossa voi hakeä tiettyä lajia.
 
+
 ## Documentation
 dokumentoinissa käytin swaggeria.
 
 ## Deployment# go-tutorial
-laitoin tämän toimiman azuressa docker konttinta
+laitoin tämän toimiman azuressa docker konttinta.
