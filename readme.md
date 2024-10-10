@@ -16,3 +16,12 @@ dokumentoinissa käytin swaggeria.
 
 ## Deployment# go-tutorial
 laitoin tämän toimiman azuressa docker konttinta.
+
+
+## Stepit mitä suoritin
+
+1. Tein go tutoriaalit
+2. Käytän tehtävissä tehtyä MongoDB ja kaikki perus grud on käytössä
+3. Filtering ,Sorting ,Pagination käytän näitä kolmea. Esimerkistä pääsee kokeilemaan filteringiä
+4. Käytä swaggeria documentoinnissa
+5. laitettu dockeriin ja pyöritetään azuressa
