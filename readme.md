@@ -1,27 +1,33 @@
-## Tutoriaali osuus
-Tein Go tutoriaaleista ensiksi kaksi ekaa ilman että aloin mietiä Setp 2. Kolmanen aloin alusta asti tekemään step 2 ajatellen käyttäen mongodb mitä oltiin tässä kurssisa tehty.
+# Go-tutoriaali Projekti
 
-## Implement the API
-Apistäni löytyy GET; POST, PUT ja DELETE näille Category, Animals ja Species.
-Get animals on käytetty populatea että saadaan category ja species tiedot.
+Tämä projekti on Go-pohjainen API, joka demonstroi CRUD-toimintoja MongoDB:n avulla sekä edistyneitä ominaisuuksia, kuten sivutusta, lajittelua ja suodatusta. API on dokumentoitu Swaggerilla ja se on otettu käyttöön Dockerin avulla Azureen.
 
-## More advanced features
-Käytin Paginationia kaikissa missä haetaan kaikki(Category, Animals ja Species)
-Sitten laitoin samamoihin kohtiin sortingin.
-Filteringiä käytin Speciessä jossa voi hakeä tiettyä lajia.
+## Tutoriaali Osuus
+Tein ensin kaksi ensimmäistä Go-tutoriaalia ilman, että mietin vaihetta 2. Kolmannen tutoriaalin aloitin alusta asti vaihe 2 mielessä käyttäen MongoDB:tä, kuten tässä kurssissa tehtiin.
 
+## API:n Toteutus
+API sisältää seuraavat päätepisteet `Category`, `Animals` ja `Species`:
+- **GET**: Hakee tieto kannasta joko kaikki tai yksittäisen
+- **POST**: Lisää uuden tiedon tietokantaan
+- **PUT**: Päivittää tietokannasta jo löytyvää tietoa
+- **DELETE**: Poistaa tietokannasta
 
-## Documentation
-dokumentoinissa käytin swaggeria.
+`GET /animals` päätepisteessä on käytetty `populate`-toimintoa, jotta saadaan `category` ja `species` tiedot mukaan.
 
-## Deployment# go-tutorial
-laitoin tämän toimiman azuressa docker konttinta.
+## Edistyneet Ominaisuudet
+- **Sivutus**: Toteutettu kaikissa `Category`, `Animals` ja `Species` päätepisteissä. Tällä määrätää sivun määrä tietoihin
+- **Lajittelu**: Lisätty samoihin päätepisteisiin kuin sivutus. Tällä voidaan määrittää m issä järjestyksessä tiedot tulevat
+- **Suodatus**: Toteutettu `Species` päätepisteessä, jossa voi hakea tiettyä lajin nimellä.
 
+## Dokumentointi
+API-dokumentaatio on luotu Swaggerin avulla. Tämä sisältää tietoa API-reiteistä
 
-## Stepit mitä suoritin
+## Käyttöönotto
+Projekti on otettu käyttöön Azureen Docker-konttin avulla.
 
-1. Tein go tutoriaalit
-2. Käytän tehtävissä tehtyä MongoDB ja kaikki perus grud on käytössä
-3. Filtering ,Sorting ,Pagination käytän näitä kolmea. Esimerkistä pääsee kokeilemaan filteringiä
-4. Käytä swaggeria documentoinnissa
-5. laitettu dockeriin ja pyöritetään azuressa
+## Suoritetut Vaiheet
+1. Tein Go-tutoriaalit.
+2. Käytän tehtävissä tehtyä MongoDB:tä ja kaikki perus CRUD-toiminnot ovat käytössä.
+3. Käytän Filtering, Sorting ja Pagination -toimintoja. Esimerkistä pääsee kokeilemaan suodatusta.
+4. Käytän Swaggeria dokumentoinnissa.
+5. Laitettu Dockeriin ja pyöritetään Azure:ssa.
